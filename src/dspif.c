@@ -21,8 +21,9 @@
 #include "dspifdefs.h"
 #include "xinitdefs.h"
 
-DspInterfaceRec curdsp;
-DspInterface currentdsp = &curdsp;
+DspInterfaceRec _curdsp;
+
+DspInterface currentdsp = &_curdsp;
 
 #ifdef XWINDOW
 extern int LispDisplayRequestedWidth;

@@ -98,7 +98,24 @@ echo start making lde for ${releasename}.
 # then finally do the make, including the right stuff
 # With makefile-tail merged, this should only take ONE make command....
 
-make RELEASENAME=${releasename} LDENAME=${ldename} \
-			OSARCHNAME=${osversion}.${architecture} \
-			-f makefile-header -f makefile-${releasename} \
-			-f makefile-tail $*
+# Example:
+#
+# makeright x
+# 
+# RELEASENAME=linux.x86_64-x LDENAME=ldex \
+#    OSARCHNAME=linux.x86_64 \
+#    -f makefile-header -f makefile-linux.x86_64-x \
+#    -f makefile-tail
+
+
+echo "DEBUG: $DEBUG"
+echo "SHOWKEYSTROKES $SHOWKEYSTROKES"
+
+make RELEASENAME=${releasename} \
+     LDENAME=${ldename} \
+     SHOWKEYSTROKES=${SHOWKEYSTROKES} \
+     OSARCHNAME=${osversion}.${architecture} \
+     DEBUG=${DEBUG} \
+     -f makefile-header \
+     -f makefile-${releasename} \
+     -f makefile-tail $*

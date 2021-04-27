@@ -101,7 +101,8 @@ OFILES = $(OBJECTDIR)arith2.o \
 	$(OBJECTDIR)perrno.o \
 	$(OBJECTDIR)foreign.o \
 	$(OBJECTDIR)lisp2c.o \
-	$(OBJECTDIR)osmsg.o
+	$(OBJECTDIR)osmsg.o \
+	$(OBJECTDIR)xkb-map.o 	
 #	$(OBJECTDIR)mnxmeth.o \
 #	$(OBJECTDIR)mnwevent.o
 
@@ -766,6 +767,14 @@ $(OBJECTDIR)osmsg.o: $(SRCDIR)osmsg.c $(REQUIRED-INCS) \
 	$(INCDIR)timeout.h $(INCDIR)locfile.h $(INCDIR)lispver2.h $(INCDIR)osmsg.h \
 	$(INCDIR)dbprint.h $(INCDIR)commondefs.h $(INCDIR)osmsgdefs.h
 	$(CC) $(RFLAGS) $(SRCDIR)osmsg.c -o $(OBJECTDIR)osmsg.o
+
+$(OBJECTDIR)xkb-map.o: $(SRCDIR)xkb-map.c $(REQUIRED-INCS) \
+	$(INCDIR)lispemul.h $(INCDIR)lispmap.h \
+	$(INCDIR)adr68k.h $(INCDIR)lsptypes.h $(INCDIR)arith.h $(INCDIR)stream.h \
+	$(INCDIR)lspglob.h $(INCDIR)ifpage.h $(INCDIR)iopage.h $(INCDIR)miscstat.h \
+	$(INCDIR)timeout.h $(INCDIR)locfile.h $(INCDIR)lispver2.h \
+	$(INCDIR)dbprint.h $(INCDIR)commondefs.h 
+	$(CC) $(RFLAGS) $(SRCDIR)xkb-map.c -o $(OBJECTDIR)xkb-map.o
 
 $(OBJECTDIR)return.o: $(SRCDIR)return.c $(REQUIRED-INCS) \
 	$(INCDIR)lispemul.h $(INCDIR)address.h \

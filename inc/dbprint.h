@@ -35,7 +35,8 @@
 
 	/* For debugging print statements */
 
-#if defined(DEBUG) || defined(TRACE) || defined(OPTRACE) || defined(FNTRACE) || defined(FNSTKCHECK)
+#if defined(DEBUG) || defined(OPDEBUG) || defined(TRACE) || \
+  defined(OPTRACE) || defined(FNTRACE) || defined(FNSTKCHECK)
 extern int flushing;
 #endif
 
@@ -47,6 +48,15 @@ extern int flushing;
 #define DEBUGGER(X)
 #endif
 
+	/* For high frequency debugging of opcodes */
+
+#ifdef OPDEBUG
+#define OPDBPRINT(X) do {printf X ; if (flushing) fflush(stdout); } while(0)
+#define OPDEBUGGER(X) X
+#else
+#define OPDBPRINT(X) do {} while(0)
+#define OPDEBUGGER(X)
+#endif
 
 	/* For trace print statements */
 

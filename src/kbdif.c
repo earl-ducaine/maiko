@@ -16,8 +16,8 @@
 #include "dbprint.h"
 #include "devif.h"
 
-KbdInterfaceRec curkbd;
-KbdInterface currentkbd = &curkbd;
+KbdInterfaceRec _curkbd;
+KbdInterface currentkbd = &_curkbd;
 
 #ifdef DOS
 extern void Kbd_event();

@@ -102,7 +102,7 @@ void OP_subrcall(int subr_no, int argnum) {
 
   PushCStack; /* save TOS in memory */
 
-  DBPRINT(("Subr call to subr 0%o.\n", subr_no));
+  OPDBPRINT(("Subr call to subr 0%o.\n", subr_no));
 
   switch (subr_no) {
     case sb_SHOWDISPLAY:

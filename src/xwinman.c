@@ -25,6 +25,7 @@
 #include "keyeventdefs.h"
 #include "xlspwindefs.h"
 #include "xscrolldefs.h"
+#include "initkbddefs.h"
 
 int Mouse_Included = FALSE;
 
@@ -39,6 +40,8 @@ extern LispPTR *CLastUserActionCell68k;
 extern MISCSTATS *MiscStats;
 extern int KBDEventFlg;
 extern u_char *SUNLispKeyMap;
+extern u_char *XKBLispKeyMap;
+
 #define KEYCODE_OFFSET 7 /* Sun Keycode offset */
 
 /* bits within the EmRealUtilin word */
@@ -182,153 +185,193 @@ extern int Current_Hot_X, Current_Hot_Y; /* Cursor hotspot */
 void getXsignaldata(DspInterface dsp)
 {
   XEvent report;
-
+  KeySym *keysym;
+  int keysyms_per_keycode_return;
+  
   while (XPending(dsp->display_id)) {
+    /* get_keycode_from_keysym */
     XNextEvent(dsp->display_id, &report);
-    if (report.xany.window == dsp->DisplayWindow) /* Try the most important window first. */
-      switch (report.type) {
-        case MotionNotify:
-          *CLastUserActionCell68k = MiscStats->secondstmp;
-          *EmCursorX68K = (*((DLword *)EmMouseX68K)) =
-              (short)((report.xmotion.x + dsp->Visible.x) & 0xFFFF) - Current_Hot_X;
-          *EmCursorY68K = (*((DLword *)EmMouseY68K)) =
-              (short)((report.xmotion.y + dsp->Visible.y) & 0xFFFF) - Current_Hot_Y;
-          DoRing();
-          if ((KBDEventFlg) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
-          break;
-        case KeyPress:
-          kb_trans(SUNLispKeyMap[(report.xkey.keycode) - KEYCODE_OFFSET], FALSE);
-          DoRing();
-          if ((KBDEventFlg += 1) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
-          break;
-        case KeyRelease:
-          kb_trans(SUNLispKeyMap[(report.xkey.keycode) - KEYCODE_OFFSET], TRUE);
-          DoRing();
-          if ((KBDEventFlg += 1) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
-          break;
-        case ButtonPress:
-          switch (report.xbutton.button) {
-            case Button1: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_LEFT, FALSE); break;
-            case Button2: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_MIDDLE, FALSE); break;
-            case Button3: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_RIGHT, FALSE); break;
-            case Button4: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_LEFT, FALSE); break;
-            case Button5: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_LEFTMIDDLE, FALSE); break;
-            case Button5 + 1: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_RIGHT, FALSE); break;
-            case Button5 + 2: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_RIGHTMIDDLE, FALSE); break;
-            default: break;
-          }
-          DoRing();
-          if ((KBDEventFlg += 1) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
-          break;
-        case ButtonRelease:
-          switch (report.xbutton.button) {
-            case Button1: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_LEFT, TRUE); break;
-            case Button2: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_MIDDLE, TRUE); break;
-            case Button3: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_RIGHT, TRUE); break;
-            case Button4: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_LEFT, TRUE); break;
-            case Button5: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_LEFTMIDDLE, TRUE); break;
-            case Button5 + 1: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_RIGHT, TRUE); break;
-            case Button5 + 2: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_RIGHTMIDDLE, TRUE); break;
-            default: break;
-          }
-          DoRing();
-          if ((KBDEventFlg += 1) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
-          break;
-        case EnterNotify: Mouse_Included = TRUE; break;
-        case LeaveNotify: Mouse_Included = FALSE; break;
-        case Expose:
-          XLOCK;
-          (dsp->bitblt_to_screen)(dsp, 0, report.xexpose.x + dsp->Visible.x,
-                                  report.xexpose.y + dsp->Visible.y, report.xexpose.width,
-                                  report.xexpose.height);
-          XUNLOCK;
-          break;
-        default: break;
+    /* Try the most important window first. */
+    if (report.xany.window == dsp->DisplayWindow) {
+      if ((report.type == KeyPress) || (report.type == KeyRelease)) {
+	keysym = XGetKeyboardMapping(dsp->display_id,
+				     report.xkey.keycode,
+				     1,
+				     &keysyms_per_keycode_return);
+	printf("keypress keysym(%x), "
+	       "key_sym_to_code_map(%i), "
+	       "keycode(%i), "
+	       "XKBLispKeyMap(%i)\n",
+	       keysym[0],
+	       get_keycode_from_keysym(keysym[0]),
+	       report.xkey.keycode,
+	       SUNLispKeyMap[(report.xkey.keycode) - KEYCODE_OFFSET]);
       }
+      switch (report.type) {
+      case MotionNotify:
+	*CLastUserActionCell68k = MiscStats->secondstmp;
+	*EmCursorX68K = (*((DLword *)EmMouseX68K)) =
+	  (short)((report.xmotion.x + dsp->Visible.x) & 0xFFFF) - Current_Hot_X;
+	*EmCursorY68K = (*((DLword *)EmMouseY68K)) =
+	  (short)((report.xmotion.y + dsp->Visible.y) & 0xFFFF) - Current_Hot_Y;
+	DoRing();
+	if ((KBDEventFlg) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
+	break;
+      case KeyPress:
+	kb_trans(SUNLispKeyMap[(get_keycode_from_keysym(keysym[0])) - KEYCODE_OFFSET],
+		 FALSE);
+	DoRing();
+	if ((KBDEventFlg += 1) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
+	break;
+      case KeyRelease:
+	kb_trans(SUNLispKeyMap[(get_keycode_from_keysym(keysym[0])) - KEYCODE_OFFSET],
+		 TRUE);
+	DoRing();
+	if ((KBDEventFlg += 1) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
+	break;
+      casee ButtonPress:
+	switch (report.xbutton.button) {
+	case Button1:
+	  printf("Mouse ButtonPress(%i)\n", report.xbutton.button);
+	  PUTBASEBIT68K(EmRealUtilin68K, MOUSE_LEFT, FALSE); break;
+	case Button2:
+	  printf("Mouse ButtonPress(%i)\n", report.xbutton.button);
+	  PUTBASEBIT68K(EmRealUtilin68K, MOUSE_RIGHT, FALSE); break;
+	case Button3:
+	  printf("Mouse ButtonPress(%i)\n", report.xbutton.button);
+	  PUTBASEBIT68K(EmRealUtilin68K, MOUSE_MIDDLE, FALSE); break;
+	case Button4:
+	  printf("Mouse ButtonPress(%i)\n", report.xbutton.button);
+	  PUTBASEBIT68K(EmRealUtilin68K, KEYSET_LEFT, FALSE); break;
+	case Button5:
+	  printf("Mouse ButtonPress(%i)\n", report.xbutton.button);
+	  PUTBASEBIT68K(EmRealUtilin68K, KEYSET_LEFTMIDDLE, FALSE); break;
+#if 0
+	  /* Button6 and Button7 are not defined, but these values are generated by
+	     macOS for the left and right scrolling movements.
+	     Leave them out for now, until we've sorted out the up and down scrolling.
+	  */
+	case Button5 + 1: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_RIGHTMIDDLE, FALSE); break;
+	case Button5 + 2: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_RIGHT, FALSE); break;
+#endif
+	default: break;
+	}
+	DoRing();
+	if ((KBDEventFlg += 1) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
+	break;
+      case ButtonRelease:
+	switch (report.xbutton.button) {
+	case Button1: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_LEFT, TRUE); break;
+	case Button2: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_MIDDLE, TRUE); break;
+	case Button3: PUTBASEBIT68K(EmRealUtilin68K, MOUSE_RIGHT, TRUE); break;
+	case Button4: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_LEFT, TRUE); break;
+	case Button5: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_LEFTMIDDLE, TRUE); break;
+#if 0
+	  /* See above for key press */
+	case Button5 + 1: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_RIGHTMIDDLE, TRUE); break;
+	case Button5 + 2: PUTBASEBIT68K(EmRealUtilin68K, KEYSET_RIGHT, TRUE); break;
+#endif
+	default: break;
+	}
+	DoRing();
+	if ((KBDEventFlg += 1) > 0) Irq_Stk_End = Irq_Stk_Check = 0;
+	break;
+      case EnterNotify: Mouse_Included = TRUE; break;
+      case LeaveNotify: Mouse_Included = FALSE; break;
+      case Expose:
+	XLOCK;
+	(dsp->bitblt_to_screen)(dsp, 0, report.xexpose.x + dsp->Visible.x,
+				report.xexpose.y + dsp->Visible.y, report.xexpose.width,
+				report.xexpose.height);
+	XUNLOCK;
+	break;
+      default: break;
+      }
+    }
     else if (report.xany.window == dsp->LispWindow)
       switch (report.xany.type) {
-        case ConfigureNotify:
-          lisp_Xconfigure(dsp, report.xconfigure.x, report.xconfigure.y, report.xconfigure.width,
-                          report.xconfigure.height);
-          break;
-        case EnterNotify: enable_Xkeyboard(currentdsp); break;
-        case LeaveNotify: break;
-        case MapNotify:
-          /* Turn the blitting to the screen on */
-          break;
-        case UnmapNotify:
-          /* Turn the blitting to the screen off */
-          break;
-        default: break;
+      case ConfigureNotify:
+	lisp_Xconfigure(dsp, report.xconfigure.x, report.xconfigure.y, report.xconfigure.width,
+			report.xconfigure.height);
+	break;
+      case EnterNotify: enable_Xkeyboard(currentdsp); break;
+      case LeaveNotify: break;
+      case MapNotify:
+	/* Turn the blitting to the screen on */
+	break;
+      case UnmapNotify:
+	/* Turn the blitting to the screen off */
+	break;
+      default: break;
       }
     else if (report.xany.window == dsp->HorScrollBar)
       switch (report.type) {
-        case ButtonPress:
-          switch (report.xbutton.button) {
-            case Button1:
-              DefineCursor(dsp->display_id, dsp->HorScrollBar, &ScrollLeftCursor);
-              ScrollLeft(dsp);
-              break;
-            case Button2:
-              DefineCursor(dsp->display_id, dsp->HorScrollBar, &HorizThumbCursor);
-              break;
-            case Button3:
-              DefineCursor(dsp->display_id, dsp->HorScrollBar, &ScrollRightCursor);
-              ScrollRight(dsp);
-              break;
-            default: break;
-          } /* end switch */
-          break;
-        case ButtonRelease:
-          switch (report.xbutton.button) {
-            case Button1:
-              DefineCursor(dsp->display_id, report.xany.window, &HorizScrollCursor);
-              break;
-            case Button2:
-              JumpScrollHor(dsp, report.xbutton.x);
-              DefineCursor(dsp->display_id, report.xany.window, &HorizScrollCursor);
-              break;
-            case Button3:
-              DefineCursor(dsp->display_id, report.xany.window, &HorizScrollCursor);
-              break;
-            default: break;
-          } /* end switch */
-        default: break;
+      case ButtonPress:
+	switch (report.xbutton.button) {
+	case Button1:
+	  DefineCursor(dsp->display_id, dsp->HorScrollBar, &ScrollLeftCursor);
+	  ScrollLeft(dsp);
+	  break;
+	case Button2:
+	  DefineCursor(dsp->display_id, dsp->HorScrollBar, &HorizThumbCursor);
+	  break;
+	case Button3:
+	  DefineCursor(dsp->display_id, dsp->HorScrollBar, &ScrollRightCursor);
+	  ScrollRight(dsp);
+	  break;
+	default: break;
+	} /* end switch */
+	break;
+      case ButtonRelease:
+	switch (report.xbutton.button) {
+	case Button1:
+	  DefineCursor(dsp->display_id, report.xany.window, &HorizScrollCursor);
+	  break;
+	case Button2:
+	  JumpScrollHor(dsp, report.xbutton.x);
+	  DefineCursor(dsp->display_id, report.xany.window, &HorizScrollCursor);
+	  break;
+	case Button3:
+	  DefineCursor(dsp->display_id, report.xany.window, &HorizScrollCursor);
+	  break;
+	default: break;
+	} /* end switch */
+      default: break;
       }
     else if (report.xany.window == dsp->VerScrollBar)
       switch (report.type) {
-        case ButtonPress:
-          switch (report.xbutton.button) {
-            case Button1:
-              DefineCursor(dsp->display_id, report.xany.window, &ScrollUpCursor);
-              ScrollUp(dsp);
-              break;
-            case Button2:
-              DefineCursor(dsp->display_id, report.xany.window, &VertThumbCursor);
-              break;
-            case Button3:
-              DefineCursor(dsp->display_id, report.xany.window, &ScrollDownCursor);
-              ScrollDown(dsp);
-              break;
-            default: break;
-          } /* end switch */
-          break;
-        case ButtonRelease:
-          switch (report.xbutton.button) {
-            case Button1:
-              DefineCursor(dsp->display_id, report.xany.window, &VertScrollCursor);
-              break;
-            case Button3:
-              DefineCursor(dsp->display_id, report.xany.window, &VertScrollCursor);
-              break;
-            case Button2:
-              JumpScrollVer(dsp, report.xbutton.y);
-              DefineCursor(dsp->display_id, report.xany.window, &VertScrollCursor);
-              break;
-            default: break;
-          } /* end switch */
-          break;
-        default: break;
+      case ButtonPress:
+	switch (report.xbutton.button) {
+	case Button1:
+	  DefineCursor(dsp->display_id, report.xany.window, &ScrollUpCursor);
+	  ScrollUp(dsp);
+	  break;
+	case Button2:
+	  DefineCursor(dsp->display_id, report.xany.window, &VertThumbCursor);
+	  break;
+	case Button3:
+	  DefineCursor(dsp->display_id, report.xany.window, &ScrollDownCursor);
+	  ScrollDown(dsp);
+	  break;
+	default: break;
+	} /* end switch */
+	break;
+      case ButtonRelease:
+	switch (report.xbutton.button) {
+	case Button1:
+	  DefineCursor(dsp->display_id, report.xany.window, &VertScrollCursor);
+	  break;
+	case Button3:
+	  DefineCursor(dsp->display_id, report.xany.window, &VertScrollCursor);
+	  break;
+	case Button2:
+	  JumpScrollVer(dsp, report.xbutton.y);
+	  DefineCursor(dsp->display_id, report.xany.window, &VertScrollCursor);
+	  break;
+	default: break;
+	} /* end switch */
+	break;
+      default: break;
       }
     else if ((report.xany.window == dsp->NEGrav) && (report.xany.type == ButtonPress) &&
              ((report.xbutton.button & 0xFF) == Button1))
